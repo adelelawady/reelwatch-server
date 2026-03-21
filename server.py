@@ -8,11 +8,10 @@ import asyncio
 import json
 import socket
 import time
-import threading
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Dict, List, Any
 import websockets
-from websockets.server import WebSocketServerProtocol
+from typing import Any as WebSocketServerProtocol  # compatible alias for ws objects
 
 # ── Rich imports ─────────────────────────────────────────────────────────────
 from rich.console import Console
@@ -45,6 +44,7 @@ class User:
     room_id: Optional[str] = None
     joined_at: float = field(default_factory=time.time)
     current_reel: str = "—"
+    first_reel_skipped: bool = False  # ignore first reel on join (loading artifact)
 
 
 @dataclass
@@ -54,12 +54,16 @@ class Room:
     remote_control: bool          # True = only controller can push reels
     controller_name: str = ""     # who currently holds remote
     created_at: float = field(default_factory=time.time)
+    last_activity: float = field(default_factory=time.time)
     users: dict = field(default_factory=dict)   # name → User
     current_reel: str = "—"
 
     def __post_init__(self):
         if self.remote_control:
             self.controller_name = self.owner_name  # owner starts with remote
+
+    def touch(self):
+        self.last_activity = time.time()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -70,15 +74,20 @@ class ServerState:
     def __init__(self):
         self.lock = asyncio.Lock()
         # ws → User (connected but not yet in a room)
-        self.connections: dict[WebSocketServerProtocol, User] = {}
+        self.connections: Dict[WebSocketServerProtocol, User] = {}
         # room_id → Room
-        self.rooms: dict[str, Room] = {}
-        self.log_lines: list[str] = []
+        self.rooms: Dict[str, Room] = {}
+        self.log_lines: List = []
         self.start_time = time.time()
 
     def add_log(self, msg: str):
+        """Store log entries as rich Text objects to prevent line wrapping."""
+        from rich.text import Text as RichText
         ts = time.strftime("%H:%M:%S")
-        self.log_lines.append(f"[dim]{ts}[/dim] {msg}")
+        t = RichText(no_wrap=True, overflow="ellipsis")
+        t.append(ts + " ", style="dim")
+        t.append_text(RichText.from_markup(msg))
+        self.log_lines.append(t)
         if len(self.log_lines) > 80:
             self.log_lines = self.log_lines[-80:]
 
@@ -210,6 +219,42 @@ def get_local_ip() -> str:
 # MESSAGE HANDLERS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+async def _evict_stale_user(name: str):
+    """
+    Remove a stale entry for `name` whose underlying socket is already closed.
+    Called during register so a quick reconnect (app backgrounded, network blip)
+    is not blocked by its own ghost entry.
+    """
+    stale_ws = None
+    for ws, u in list(state.connections.items()):
+        if u.name == name:
+            stale_ws = ws
+            break
+    if stale_ws is None:
+        return
+
+    # Only evict if the socket is genuinely gone (CLOSED / CLOSING state)
+    try:
+        closed = not stale_ws.open
+    except Exception:
+        closed = True
+
+    if not closed:
+        return  # socket still alive — real NAME_TAKEN, do not evict
+
+    # Socket is dead — clean it up exactly like the finally block would
+    old_user = state.connections.pop(stale_ws, None)
+    if old_user and old_user.room_id:
+        room = state.rooms.get(old_user.room_id)
+        if room:
+            room.users.pop(old_user.name, None)
+            if room.remote_control and room.controller_name == old_user.name:
+                room.controller_name = room.owner_name
+            await push_room_state(room)
+            await push_rooms_list_to_all()
+    state.add_log(f"[dim]♻ evicted stale session for [bold]{name}[/bold][/dim]")
+
+
 async def handle_register(ws, msg):
     """Client sends: { type: 'register', name: 'Alice' }"""
     name = (msg.get("name") or "").strip()
@@ -217,7 +262,11 @@ async def handle_register(ws, msg):
         await send(ws, {"type": "error", "code": "NAME_REQUIRED", "msg": "Name is required."})
         return
 
-    # Check name uniqueness — connections only contains real User objects now
+    # Grace-period cleanup: if the name exists but its socket is already closed
+    # (quick reconnect / app backgrounded), evict the ghost entry before checking.
+    await _evict_stale_user(name)
+
+    # Check name uniqueness — only live sockets remain after eviction above
     if any(u.name == name for u in state.connections.values()):
         await send(ws, {"type": "error", "code": "NAME_TAKEN", "msg": f"Name '{name}' is already taken."})
         return
@@ -288,7 +337,9 @@ async def handle_join(ws, msg, user: User):
             state.add_log(f"[dim]{user.name} left {user.room_id}[/dim]")
 
     user.room_id = room_id
+    user.first_reel_skipped = False  # reset so first reel after join is ignored
     room.users[user.name] = user
+    room.touch()
     state.add_log(f"[blue]→[/blue] [bold]{user.name}[/bold] joined room [yellow]{room_id}[/yellow] ({len(room.users)} users)")
 
     await send(ws, {"type": "joined", "room": room_id})
@@ -353,6 +404,11 @@ async def handle_reel_update(ws, msg, user: User, msg_type: str):
     if not room:
         return
 
+    # First-reel-on-join gate — skip the loading artifact
+    if not user.first_reel_skipped:
+        user.first_reel_skipped = True
+        return
+
     # Remote control gate
     if room.remote_control and room.controller_name != user.name:
         # Silently drop — non-controller scroll events are ignored
@@ -367,6 +423,7 @@ async def handle_reel_update(ws, msg, user: User, msg_type: str):
         room.current_reel = f"#{msg.get('index', '?')}"
         user.current_reel = room.current_reel
 
+    room.touch()
     await broadcast_room(room.room_id, msg, skip=ws)
 
 
@@ -377,6 +434,7 @@ async def handle_comment(ws, msg, user: User):
     if not room:
         return
     text = msg.get("text", "")
+    room.touch()
     state.add_log(f"[green]💬[/green] [bold]{user.name}[/bold] @ [yellow]{user.room_id}[/yellow]: {text[:60]}")
     await broadcast_room(user.room_id, {**msg, "from": user.name}, skip=ws)
 
@@ -552,12 +610,11 @@ def build_dashboard(local_ip: str) -> Layout:
     layout["users"].update(Panel(users_table, title="[bold yellow]👥 Users[/bold yellow]", box=box.ROUNDED))
 
     # ── Log ───────────────────────────────────────────────────────────────────
-    log_lines = state.log_lines[-10:]
-    log_text = Text()
-    for line in log_lines:
-        log_text.append(line + "\n")
-
-    layout["log"].update(Panel(log_text, title="[bold white]📋 Log[/bold white]", box=box.ROUNDED))
+    from rich.console import Group as RichGroup
+    log_entries = state.log_lines[-12:]
+    log_renderables = list(log_entries)  # already Text objects with no_wrap
+    log_group = RichGroup(*log_renderables) if log_renderables else Text("[dim]No activity yet[/dim]")
+    layout["log"].update(Panel(log_group, title="[bold white]📋 Log[/bold white]", box=box.ROUNDED))
 
     # ── Footer ────────────────────────────────────────────────────────────────
     footer_text = Text.assemble(
@@ -578,10 +635,43 @@ def build_dashboard(local_ip: str) -> Layout:
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════════════
 
+IDLE_TIMEOUT = 180  # seconds — delete room after 3 min of no activity
+
+
+async def idle_room_reaper():
+    """Background task: delete rooms with no activity for IDLE_TIMEOUT seconds."""
+    while True:
+        await asyncio.sleep(30)  # check every 30 s
+        now = time.time()
+        async with state.lock:
+            stale = [
+                rid for rid, room in state.rooms.items()
+                if (now - room.last_activity) >= IDLE_TIMEOUT
+            ]
+            for rid in stale:
+                room = state.rooms.pop(rid)
+                # Notify and eject any remaining users
+                await broadcast_room(rid, {
+                    "type": "room_deleted",
+                    "room": rid,
+                    "reason": "Room closed due to inactivity.",
+                })
+                for u in room.users.values():
+                    u.room_id = None
+                idle_min = int((now - room.last_activity) / 60)
+                state.add_log(
+                    f"[dim]🕐 Room [yellow]{rid}[/yellow] deleted after {idle_min}m idle[/dim]"
+                )
+            if stale:
+                await push_rooms_list_to_all()
+
+
 async def main():
     local_ip = get_local_ip()
 
     state.add_log(f"[bold green]Server started[/bold green] on [cyan]ws://{local_ip}:{PORT}[/cyan]")
+
+    stop_event = asyncio.Event()
 
     async def serve():
         async with websockets.serve(
@@ -591,18 +681,24 @@ async def main():
             ping_interval=20,
             ping_timeout=10,
         ):
-            await asyncio.Future()
+            await stop_event.wait()
 
     server_task = asyncio.create_task(serve())
+    asyncio.create_task(idle_room_reaper())
 
-    with Live(build_dashboard(local_ip), refresh_per_second=4, console=console, screen=True) as live:
-        while not server_task.done():
-            live.update(build_dashboard(local_ip))
-            await asyncio.sleep(0.25)
+    try:
+        with Live(build_dashboard(local_ip), refresh_per_second=4, console=console, screen=True) as live:
+            while not stop_event.is_set():
+                live.update(build_dashboard(local_ip))
+                await asyncio.sleep(0.25)
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        stop_event.set()
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    finally:
         console.print("\n[bold red]🛑 ReelWatch Server stopped.[/bold red]")

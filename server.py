@@ -10,6 +10,7 @@ import socket
 import time
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
+import psutil, os
 import websockets
 from typing import Any as WebSocketServerProtocol  # compatible alias for ws objects
 
@@ -79,6 +80,20 @@ class ServerState:
         self.rooms: Dict[str, Room] = {}
         self.log_lines: List = []
         self.start_time = time.time()
+        self._mem_mb: float = 0.0
+        self._mem_checked_at: float = 0.0
+
+    @property
+    def mem_mb(self) -> float:
+        """RSS memory in MB, refreshed at most once every 5 seconds."""
+        now = time.time()
+        if now - self._mem_checked_at >= 5:
+            try:
+                self._mem_mb = psutil.Process(os.getpid()).memory_info().rss / 1_048_576
+            except Exception:
+                pass
+            self._mem_checked_at = now
+        return self._mem_mb
 
     def add_log(self, msg: str):
         """Store log entries as rich Text objects to prevent line wrapping."""
@@ -547,6 +562,8 @@ def build_dashboard(local_ip: str) -> Layout:
         (f"👥 {state.total_users} users", "yellow"),
         ("  │  ", "dim"),
         (f"🏠 {state.total_rooms} rooms", "blue"),
+        ("  │  ", "dim"),
+        (f"🧠 {state.mem_mb:.1f} MB", "cyan"),
     )
     layout["header"].update(Panel(Align.center(header_text), style="bold", box=box.HORIZONTALS))
 
@@ -687,10 +704,10 @@ async def main():
     asyncio.create_task(idle_room_reaper())
 
     try:
-        with Live(build_dashboard(local_ip), refresh_per_second=4, console=console, screen=True) as live:
+        with Live(build_dashboard(local_ip), refresh_per_second=1, console=console, screen=True) as live:
             while not stop_event.is_set():
                 live.update(build_dashboard(local_ip))
-                await asyncio.sleep(0.25)
+                await asyncio.sleep(1.0)
     except (KeyboardInterrupt, asyncio.CancelledError):
         stop_event.set()
 

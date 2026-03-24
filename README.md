@@ -2,232 +2,222 @@
 
 <div align="center">
 
+<img src="https://github.com/user-attachments/assets/da97ddc3-153f-4077-a666-b0de92902fc3" width="160" />
 
-<img width="200" height="200" alt="ReelWatch Logo" src="https://github.com/user-attachments/assets/da97ddc3-153f-4077-a666-b0de92902fc3" />
+### 📡 Watch Instagram Reels Together — In Sync, In Real-Time
 
-**Watch Instagram Reels together, in sync, in real time.**
+[![GitHub stars](https://img.shields.io/github/stars/adelelawady/reelwatch?style=for-the-badge)](https://github.com/adelelawady/reelwatch)
+[![GitHub forks](https://img.shields.io/github/forks/adelelawady/reelwatch?style=for-the-badge)](https://github.com/adelelawady/reelwatch)
+[![License](https://img.shields.io/github/license/adelelawady/reelwatch?style=for-the-badge)](https://github.com/adelelawady/reelwatch)
+[![Repo size](https://img.shields.io/github/repo-size/adelelawady/reelwatch?style=for-the-badge)](https://github.com/adelelawady/reelwatch)
+[![Last commit](https://img.shields.io/github/last-commit/adelelawady/reelwatch?style=for-the-badge)](https://github.com/adelelawady/reelwatch)
+[![Issues](https://img.shields.io/github/issues/adelelawady/reelwatch?style=for-the-badge)](https://github.com/adelelawady/reelwatch/issues)
 
-> **⚠️ Important Note**: You'll need a **new Instagram account** to use ReelWatch. This ensures optimal performance and avoids conflicts with your main Instagram account.
-
-**ReelWatch brings people together through shared entertainment.** Open Instagram together in real-time with live comments - watch funny reels, romantic moments, and viral content with your loved ones, no matter the distance.
-
-
-🌐 **Try it now**: [reelwatch.adelelawady.org](https://reelwatch.adelelawady.org/)  | 🌐 **Server**: [reelwatch-server](https://github.com/adelelawady/reelwatch-server)
-
-
-<img width="1858" height="927" alt="Screenshot 2026-03-23 220603" src="https://github.com/user-attachments/assets/28aa4fa4-70c6-453e-8e9a-706ea5095f67" />
-
-
-
-
-
-# 🎬 ReelWatch Server — Python Setup Guide
-
-A WebSocket server that syncs Instagram Reels watching across devices.
-This is a Python port of the original Node.js `server.js`.
+</div>
 
 ---
 
-## 📋 Requirements
+## 🚀 Overview
 
-- Python **3.10 or newer** (uses `asyncio`)
-- pip (comes bundled with Python)
+**ReelWatch** is a real-time synchronized Instagram Reels watching platform that allows multiple users to:
+
+- 🎥 Watch reels together  
+- 💬 Chat live while watching  
+- 🎮 Control playback collaboratively or via a host  
+- 🌍 Stay connected from anywhere  
+
+> ⚠️ **Important:** Use a **secondary Instagram account** for best experience.
 
 ---
 
-## 🚀 Quick Start (Step by Step)
+## ✨ Features
 
-### Step 1 — Check your Python version
+- 🔄 **Real-time sync** across all users in a room  
+- 🏠 **Room system** with join/leave support  
+- 🎮 **Remote control mode** (host controls playback)  
+- 👥 **Multi-user sessions** with live presence tracking  
+- 💬 **Live comments/chat system**  
+- 📡 **WebSocket-based ultra-fast communication**  
+- 🔁 **Reel position sync (index-based scrolling)**  
+- 🔗 **URL & video source synchronization**
 
-Open a terminal (Command Prompt / PowerShell on Windows, Terminal on Mac/Linux) and run:
+---
+
+## 🧠 How It Works
+
+ReelWatch uses a **WebSocket-based architecture** to maintain real-time synchronization:
+
+1. Client connects to server via WebSocket  
+2. User registers with a unique name  
+3. User creates or joins a room  
+4. Reel interactions are broadcast in real-time  
+5. Server enforces sync rules (controller / shared mode)
+
+### 🔄 Sync Modes
+
+| Mode | Behavior |
+|------|--------|
+| `remote_control: true` | Only controller updates sync |
+| `remote_control: false` | Everyone controls sync |
+
+---
+
+## 🛠 Tech Stack
+
+### Frontend
+- ⚛️ React Native / Expo
+- 🌐 WebView (Instagram embedding)
+
+### Backend
+- 🐍 Python (asyncio)
+- 🔌 websockets
+
+### Infrastructure
+- 🌍 WebSocket Protocol
+- ⚡ Real-time event broadcasting
+
+---
+
+## 📦 Installation
+
+### 🔧 Server Setup (Python)
 
 ```bash
-python --version
-```
-
-You need `3.10+`. If you see `Python 2.x` try `python3 --version` instead and use `python3` for all commands below.
-
----
-
-### Step 2 — Create the project folder
-
-```bash
-mkdir reelwatch-server
+git clone https://github.com/adelelawady/reelwatch-server.git
 cd reelwatch-server
 ```
 
----
-
-### Step 3 — Copy the server files
-
-Place both files inside `reelwatch-server/`:
-
+## 1 Create virtual environment
 ```
-reelwatch-server/
-├── server.py
-└── requirements.txt
-```
-
----
-
-### Step 4 — Create a virtual environment (recommended)
-
-A virtual environment keeps dependencies isolated from your system Python.
-
-```bash
-# Create the environment
 python -m venv venv
-
-# Activate it:
-# Windows (Command Prompt)
-venv\Scripts\activate
-
-# Windows (PowerShell)
-venv\Scripts\Activate.ps1
-
-# Mac / Linux
-source venv/bin/activate
+source venv/bin/activate  # macOS/Linux
+venv\Scripts\activate     # Windows
 ```
-
-You'll see `(venv)` appear at the start of your terminal prompt — that means it's active.
-
----
-
-### Step 5 — Install dependencies
-
-```bash
+## 2. Install dependencies
+```
 pip install -r requirements.txt
 ```
 
-This installs the `websockets` library (the only dependency).
 
----
-
-### Step 6 — Find your local IP address
-
-Other devices connect using your machine's local IP.
-
-| OS | Command |
-|----|---------|
-| Windows | `ipconfig` → look for **IPv4 Address** under your Wi-Fi adapter |
-| Mac | `ifconfig en0` → look for **inet** |
-| Linux | `ip a` or `ifconfig` → look for **inet** under your active interface |
-
-Example IP: `192.168.1.42`
-
----
-
-### Step 7 — Run the server
-
-```bash
+## 3. Run server
+```
 python server.py
 ```
 
-You should see:
+
+### 🚀 Usage
+## Connect to server
 
 ```
-🎬 ReelWatch server running (Python)
-   ws://YOUR_PC_IP:3001
-   Find your IP: run 'ipconfig' (Windows) or 'ifconfig' (Mac/Linux)
+ws://YOUR_IP:3001
 ```
 
----
-
-### Step 8 — Connect clients
-
-In your extension or client, use:
-
+## Example Flow
 ```
-ws://192.168.1.42:3001
+register → create_room → join → sync reels → chat → transfer control
 ```
 
-Replace `192.168.1.42` with your actual IP from Step 6.
 
----
+### 📡 API Reference (WebSocket)
 
-## 📡 WebSocket Message Protocol
 
-The server handles these message types (same as the original Node.js version):
-
-| `type` | Description | Fields |
-|--------|-------------|--------|
-| `join` | Join a sync room | `room` (optional, defaults to `"default"`) |
-| `url` | Broadcast a reel URL | `url` |
-| `comment` | Broadcast a comment | `text` |
-| `reel_url` | Broadcast reel page URL | `url` |
-| `reel_src` | Broadcast reel video src | — |
-| `reel_index` | Broadcast reel position | `index` |
-
-### Example messages (JSON)
-
-```json
-{ "type": "join", "room": "myroom" }
-{ "type": "reel_url", "url": "https://www.instagram.com/reels/ABC123/" }
-{ "type": "comment", "text": "lol this is funny" }
+## 🔐 Register
+```
+{ "type": "register", "name": "Alice" }
+```
+## 🏠 Room Management
+```
+{ "type": "create_room", "room": "movie-night", "remote_control": true }
+{ "type": "join", "room": "movie-night" }
+{ "type": "leave" }
+{ "type": "delete_room", "room": "movie-night" }
+```
+## 🎮 Control
+```
+{ "type": "transfer_remote", "to": "Bob" }
+```
+## 🎥 Reel Sync
+```
+{ "type": "reel_url", "url": "https://instagram.com/reels/ABC123/" }
 { "type": "reel_index", "index": 3 }
 ```
+## 💬 Chat
+```
+{ "type": "comment", "text": "This is hilarious 😂" }
+```
+## ❌ Error Example
+```
+{ "type": "error", "code": "NAME_TAKEN", "msg": "Name already used" }
+```
+## 📂 Project Structure
+```
+reelwatch/
+├── app/                  # Mobile app (Expo)
+├── components/           # UI components
+├── server/               # Backend server (Python)
+│   ├── server.py
+│   └── requirements.txt
+├── assets/               # Images & icons
+├── README.md
+```
 
----
+## 🖼 Screenshots
+1️⃣ Main Interface
 
-## 🔁 Stopping and Restarting
+<img src="https://github.com/user-attachments/assets/28aa4fa4-70c6-453e-8e9a-706ea5095f67" />
+2️⃣ APP Experience
+<img width="447" height="892" alt="Screenshot 2026-03-24 064130" src="https://github.com/user-attachments/assets/d0ccec33-adc3-4b34-bb7b-9489d30c28f7" />
 
-To stop the server press `Ctrl + C` in the terminal.
 
-To restart:
-```bash
+### 🧪 Development
+
+## Run in development mode
+
+# Backend
+
+```
 python server.py
 ```
 
----
-
-## 🛠️ Troubleshooting
-
-### Port already in use
-```bash
-# Find what's using port 3001
-# Windows
-netstat -ano | findstr :3001
-
-# Mac/Linux
-lsof -i :3001
-```
-Or change `PORT = 3001` at the top of `server.py` to another port like `3002`.
-
-### Clients can't connect
-- Make sure the server machine's **firewall** allows inbound connections on port 3001.
-- Windows: Search "Windows Defender Firewall" → Advanced Settings → Inbound Rules → New Rule → Port 3001.
-- All devices must be on the **same Wi-Fi network**.
-
-### `websockets` not found after installing
-Make sure your virtual environment is active (`(venv)` in your prompt), then re-run:
-```bash
-pip install -r requirements.txt
-```
-
-### Python version error
-Upgrade Python from https://python.org/downloads — get 3.10 or newer.
-
----
-
-## 📁 Project Structure
+# Frontend (Expo)
 
 ```
-reelwatch-server/
-├── server.py          ← Main server (this is the only file you need to run)
-├── requirements.txt   ← Python dependencies
-└── venv/              ← Virtual environment (created in Step 4, not committed to git)
+npx expo start
 ```
 
----
+### 🤝 Contributing
 
-## 🔄 Differences from the Node.js version
+Contributions are welcome!
+```
+Steps:
+Fork the repo
+Create a feature branch
+Commit your changes
+Push and open a PR
+git checkout -b feature/amazing-feature
+git commit -m "Add amazing feature"
+git push origin feature/amazing-feature
+```
+### 📜 License
 
-| Feature | Node.js | Python |
-|---------|---------|--------|
-| Runtime | `node server.js` | `python server.py` |
-| WebSocket library | `ws` | `websockets` |
-| Concurrency | Event loop (libuv) | `asyncio` event loop |
-| Behavior | Identical | Identical |
-| Port | 3001 | 3001 |
+This project is licensed under the MIT License.
 
-All message types and room behavior are exactly the same.
+### ⭐ Support
+
+If you like this project:
+
+⭐ Star the repo
+🐛 Report issues
+💡 Suggest features
+📢 Share it with others
+🌐 Live Demo
+
+👉 https://reelwatch.adelelawady.org/
+```
+<div align="center">
+
+Built with ❤️ by Adel Alawady
+
+</div>
+```
+

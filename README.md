@@ -1,3 +1,26 @@
+# 🎬 ReelWatch
+
+<div align="center">
+
+
+<img width="200" height="200" alt="ReelWatch Logo" src="https://github.com/user-attachments/assets/da97ddc3-153f-4077-a666-b0de92902fc3" />
+
+**Watch Instagram Reels together, in sync, in real time.**
+
+> **⚠️ Important Note**: You'll need a **new Instagram account** to use ReelWatch. This ensures optimal performance and avoids conflicts with your main Instagram account.
+
+**ReelWatch brings people together through shared entertainment.** Open Instagram together in real-time with live comments - watch funny reels, romantic moments, and viral content with your loved ones, no matter the distance.
+
+
+🌐 **Try it now**: [reelwatch.adelelawady.org](https://reelwatch.adelelawady.org/)  | 🌐 **Server**: [reelwatch-server](https://github.com/adelelawady/reelwatch-server)
+
+
+<img width="1858" height="927" alt="Screenshot 2026-03-23 220603" src="https://github.com/user-attachments/assets/28aa4fa4-70c6-453e-8e9a-706ea5095f67" />
+
+
+
+
+
 # 🎬 ReelWatch Server — Python Setup Guide
 
 A WebSocket server that syncs Instagram Reels watching across devices.
